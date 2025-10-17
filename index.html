@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Environmental Monitoring Dashboard</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* Basic Setup */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            background-color: #f4f7fa;
+            color: #333;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background-color: #ffffff;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            text-align: center;
+        }
+
+        .sidebar-header h3 {
+            margin: 0;
+            color: #0056b3;
+        }
+
+        .sidebar ul {
+            list-style-type: none;
+            padding: 20px 0;
+            margin: 0;
+        }
+
+        .sidebar li {
+            padding: 0 20px;
+        }
+
+        .sidebar .nav-link {
+            display: block;
+            padding: 12px 15px;
+            text-decoration: none;
+            color: #555;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .sidebar .nav-link:hover {
+            background-color: #f0f0f0;
+        }
+
+        .sidebar .nav-link.active {
+            background-color: #007bff;
+            color: #ffffff;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex-grow: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .page {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h2 {
+            color: #222;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        /* Alert Banner */
+        .alert {
+            padding: 15px 20px;
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        /* Gauges (Home Page) */
+        .gauges-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .gauge-card {
+            flex-grow: 1;
+            min-width: 250px;
+            background-color: #ffffff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+
+        .gauge-card h3 {
+            margin-top: 0;
+            color: #444;
+        }
+
+        .gauge-value {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .gauge-card span {
+            font-size: 1.2rem;
+            color: #888;
+        }
+
+        /* Color Indicators */
+        .gauge-value.good {
+            color: #28a745;
+        }
+        .gauge-value.moderate {
+            color: #ffc107;
+        }
+        .gauge-value.bad {
+            color: #dc3545;
+        }
+
+        /* Analytics Page */
+        .chart-container {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        /* Settings Page */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        #settings-form button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        #settings-form button:hover {
+            background-color: #0056b3;
+        }
+
+        #save-confirmation {
+            color: #28a745;
+            font-weight: 500;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <h3>SmartMonitor</h3>
+        </div>
+        <ul>
+            <li><a href="#" class="nav-link active" data-page="home">Home</a></li>
+            <li><a href="#" class="nav-link" data-page="analytics">Analytics</a></li>
+            <li><a href="#" class="nav-link" data-page="settings">Settings</a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+
+        <section class="page" id="home-page">
+            <h2>Real-time Dashboard</h2>
+
+            <div id="alert-banner" class="alert" style="display: none;">
+                <strong>Warning!</strong> One or more environmental readings are above the set threshold.
+            </div>
+
+            <div class="gauges-container">
+                <div class="gauge-card">
+                    <h3>Noise Level</h3>
+                    <div class="gauge-value" id="noise-value">--</div>
+                    <span>dB</span>
+                </div>
+                <div class="gauge-card">
+                    <h3>Air Quality (AQI)</h3>
+                    <div class="gauge-value" id="aqi-value">--</div>
+                    <span>AQI</span>
+                </div>
+                <div class="gauge-card">
+                    <h3>Temperature</h3>
+                    <div class="gauge-value" id="temp-value">--</div>
+                    <span>°C</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="page" id="analytics-page" style="display: none;">
+            <h2>Data Analytics</h2>
+            <div class="chart-container">
+                <h3>Pollution Trends (Last 7 Days)</h3>
+                <canvas id="time-series-chart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Peak Noise Hours (Today)</h3>
+                <canvas id="bar-chart"></canvas>
+            </div>
+        </section>
+
+        <section class="page" id="settings-page" style="display: none;">
+            <h2>Settings</h2>
+            <form id="settings-form">
+                <div class="form-group">
+                    <label for="noise-threshold">Noise Alert Threshold (dB)</label>
+                    <input type="number" id="noise-threshold" value="80">
+                </div>
+                <div class="form-group">
+                    <label for="aqi-threshold">Air Quality Alert Threshold (AQI)</label>
+                    <input type="number" id="aqi-threshold" value="100">
+                </div>
+                <div class="form-group">
+                    <label for="temp-threshold">Temperature Alert Threshold (°C)</label>
+                    <input type="number" id="temp-threshold" value="35">
+                </div>
+                <div class="form-group">
+                    <label for="refresh-interval">Refresh Interval (milliseconds)</label>
+                    <input type="number" id="refresh-interval" value="3000" min="1000">
+                </div>
+                <button type="submit">Save Settings</button>
+                <div id="save-confirmation" style="display: none;">Settings saved!</div>
+            </form>
+        </section>
+
+    </main>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+
+            // --- Global Settings ---
+            let settings = {
+                noiseThreshold: 80,
+                aqiThreshold: 100,
+                tempThreshold: 35,
+                refreshInterval: 3000
+            };
+            
+            let dataUpdateInterval;
+
+            // --- DOM Elements ---
+            const pages = document.querySelectorAll(".page");
+            const navLinks = document.querySelectorAll(".nav-link");
+            const alertBanner = document.getElementById("alert-banner");
+            
+            const noiseValueEl = document.getElementById("noise-value");
+            const aqiValueEl = document.getElementById("aqi-value");
+            const tempValueEl = document.getElementById("temp-value");
+            
+            const settingsForm = document.getElementById("settings-form");
+            const saveConfirmation = document.getElementById("save-confirmation");
+
+            // --- Page Navigation ---
+            navLinks.forEach(link => {
+                link.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    const pageId = link.getAttribute("data-page") + "-page";
+
+                    // Hide all pages
+                    pages.forEach(page => {
+                        page.style.display = "none";
+                    });
+
+                    // Show the target page
+                    document.getElementById(pageId).style.display = "block";
+
+                    // Update active link
+                    navLinks.forEach(nav => nav.classList.remove("active"));
+                    link.classList.add("active");
+
+                    // Special case: Initialize charts only when analytics page is shown
+                    if (pageId === "analytics-page") {
+                        initAnalyticsCharts();
+                    }
+                });
+            });
+
+            // --- Home Page: Real-time Data Simulation ---
+            function updateReadings() {
+                // 1. Simulate new data
+                const noise = (Math.random() * 60 + 30).toFixed(1); // 30-90 dB
+                const aqi = Math.floor(Math.random() * 140 + 10);   // 10-150 AQI
+                const temp = (Math.random() * 15 + 25).toFixed(1);  // 25-40 °C
+
+                // 2. Update DOM
+                noiseValueEl.textContent = noise;
+                aqiValueEl.textContent = aqi;
+                tempValueEl.textContent = temp;
+
+                // 3. Check thresholds and apply styles
+                let alertActive = false;
+
+                // Noise
+                if (noise > settings.noiseThreshold) {
+                    noiseValueEl.className = "gauge-value bad";
+                    alertActive = true;
+                } else if (noise > settings.noiseThreshold - 20) {
+                    noiseValueEl.className = "gauge-value moderate";
+                } else {
+                    noiseValueEl.className = "gauge-value good";
+                }
+
+                // AQI
+                if (aqi > settings.aqiThreshold) {
+                    aqiValueEl.className = "gauge-value bad";
+                    alertActive = true;
+                } else if (aqi > settings.aqiThreshold / 2) {
+                    aqiValueEl.className = "gauge-value moderate";
+                } else {
+                    aqiValueEl.className = "gauge-value good";
+                }
+
+                // Temperature
+                if (temp > settings.tempThreshold) {
+                    tempValueEl.className = "gauge-value bad";
+                    alertActive = true;
+                } else if (temp > settings.tempThreshold - 5) {
+                    tempValueEl.className = "gauge-value moderate";
+                } else {
+                    tempValueEl.className = "gauge-value good";
+                }
+
+                // 4. Show/Hide Alert Banner
+                alertBanner.style.display = alertActive ? "block" : "none";
+            }
+
+            // --- Settings Page ---
+            function loadSettings() {
+                document.getElementById("noise-threshold").value = settings.noiseThreshold;
+                document.getElementById("aqi-threshold").value = settings.aqiThreshold;
+                document.getElementById("temp-threshold").value = settings.tempThreshold;
+                document.getElementById("refresh-interval").value = settings.refreshInterval;
+            }
+            
+            settingsForm.addEventListener("submit", (e) => {
+                e.preventDefault();
+                
+                // Update settings object
+                settings.noiseThreshold = parseFloat(document.getElementById("noise-threshold").value);
+                settings.aqiThreshold = parseFloat(document.getElementById("aqi-threshold").value);
+                settings.tempThreshold = parseFloat(document.getElementById("temp-threshold").value);
+                settings.refreshInterval = parseInt(document.getElementById("refresh-interval").value, 10);
+
+                // Show confirmation
+                saveConfirmation.style.display = "block";
+                setTimeout(() => { saveConfirmation.style.display = "none"; }, 2000);
+
+                // Restart the data update interval with the new time
+                clearInterval(dataUpdateInterval);
+                dataUpdateInterval = setInterval(updateReadings, settings.refreshInterval);
+                
+                console.log("Settings updated:", settings);
+            });
+
+
+            // --- Analytics Page ---
+            let timeSeriesChart, barChart;
+
+            function initAnalyticsCharts() {
+                // Dummy data for charts
+                const timeLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+                const aqiData = [55, 60, 75, 90, 80, 105, 100];
+                const noiseData = [60, 62, 65, 70, 75, 85, 80];
+
+                const barLabels = ["6am", "9am", "12pm", "3pm", "6pm", "9pm"];
+                const barNoiseData = [50, 75, 70, 65, 80, 60];
+
+                // Destroy old charts if they exist (to prevent duplicates)
+                if (timeSeriesChart) timeSeriesChart.destroy();
+                if (barChart) barChart.destroy();
+
+                // 1. Time Series Chart
+                const tsCtx = document.getElementById('time-series-chart').getContext('2d');
+                timeSeriesChart = new Chart(tsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: timeLabels,
+                        datasets: [
+                            {
+                                label: 'AQI',
+                                data: aqiData,
+                                borderColor: '#ffc107',
+                                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                                tension: 0.1,
+                                fill: true,
+                            },
+                            {
+                                label: 'Noise (dB)',
+                                data: noiseData,
+                                borderColor: '#dc3545',
+                                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                                tension: 0.1,
+                                fill: true,
+                            }
+                        ]
+                    }
+                });
+
+                // 2. Bar Chart
+                const barCtx = document.getElementById('bar-chart').getContext('2d');
+                barChart = new Chart(barCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: barLabels,
+                        datasets: [{
+                            label: 'Average Noise Level (dB)',
+                            data: barNoiseData,
+                            backgroundColor: '#007bff',
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+
+            // --- Initial Load ---
+            loadSettings();
+            updateReadings(); // Run once immediately
+            dataUpdateInterval = setInterval(updateReadings, settings.refreshInterval); // Start the simulation
+        });
+    </script>
+</body>
+</html>
