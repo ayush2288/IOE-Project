@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Environmental Monitoring Dashboard</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Firebase SDK -->
+  <script type="module">
+    // Import Firebase SDKs
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+    import { getFirestore, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+
+    // Firebase Config (your provided credentials)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBgKXWMDbNQhaZTPCkrYvACKHTYzLMLLjk",
+      authDomain: "ioe-project-562ab.firebaseapp.com",
+      projectId: "ioe-project-562ab",
+      storageBucket: "ioe-project-562ab.firebasestorage.app",
+      messagingSenderId: "767024900149",
+      appId: "1:767024900149:web:c74c5e76ee12516293297c",
+      measurementId: "G-085JDQ9P6W"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Expose globally so normal JS can access it
+    window.db = db;
+    window.getFirestoreData = async function getFirestoreData() {
+      const q = query(collection(db, "sensorData"), orderBy("time", "desc"), limit(1));
+      const querySnapshot = await getDocs(q);
+      let latest = null;
+      querySnapshot.forEach(doc => {
+        latest = doc.data();
+      });
+      return latest;
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      display: flex;
+      background-color: #f4f7fa;
+      height: 100vh;
+      color: #333;
+    }
+    .sidebar {
+      width: 240px;
+      background: #fff;
+      border-right: 1px solid #ddd;
+      padding-top: 10px;
+    }
+    .sidebar-header {
+      text-align: center;
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    .sidebar-header h3 {
+      color: #007bff;
+    }
+    .sidebar .nav-link {
+      display: block;
+      padding: 12px 20px;
+      text-decoration: none;
+      color: #444;
+      border-radius: 5px;
+    }
+    .sidebar .nav-link.active {
+      background: #007bff;
+      color: #fff;
+    }
+    .sidebar .nav-link:hover {
+      background: #f1f1f1;
+    }
+    .main-content {
+      flex: 1;
+      padding: 30px;
+      overflow-y: auto;
+    }
+    .gauge-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 10px;
+      text-align: center;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+      flex: 1;
+      min-width: 250px;
+    }
+    .gauges-container {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .gauge-value {
+      font-size: 3rem;
+      font-weight: bold;
+    }
+    .good { color: #28a745; }
+    .moderate { color: #ffc107; }
+    .bad { color: #dc3545; }
+    .alert {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 20px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <nav class="sidebar">
+    <div class="sidebar-header"><h3>SmartMonitor</h3></div>
+    <a href="#" class="nav-link active" data-page="home">Home</a>
+    <a href="#" class="nav-link" data-page="analytics">Analytics</a>
+    <a href="#" class="nav-link" data-page="settings">Settings</a>
+  </nav>
+
+  <main class="main-content">
+    <section id="home-page" class="page">
+      <h2>Real-time Dashboard</h2>
+      <div id="alert-banner" class="alert"><strong>Warning!</strong> Levels above threshold!</div>
+
+      <div class="gauges-container">
+        <div class="gauge-card">
+          <h3>Noise Level</h3>
+          <div class="gauge-value" id="noise-value">--</div>
+          <span>dB</span>
+        </div>
+        <div class="gauge-card">
+          <h3>Air Quality</h3>
+          <div class="gauge-value" id="air-value">--</div>
+          <span>AQI</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="analytics-page" class="page" style="display:none;">
+      <h2>Analytics</h2>
+      <canvas id="trendChart"></canvas>
+    </section>
+
+    <section id="settings-page" class="page" style="display:none;">
+      <h2>Settings</h2>
+      <form id="settings-form">
+        <label>Noise Threshold (dB)</label>
+        <input id="noise-threshold" type="number" value="80"><br><br>
+        <label>Air Threshold</label>
+        <input id="air-threshold" type="number" value="100"><br><br>
+        <label>Refresh Interval (ms)</label>
+        <input id="refresh-interval" type="number" value="4000"><br><br>
+        <button type="submit">Save</button>
+      </form>
+      <p id="save-msg" style="color:green;display:none;">Settings saved!</p>
+    </section>
+  </main>
+
+  <script>
+    let settings = { noiseThreshold: 80, airThreshold: 100, refreshInterval: 4000 };
+    const pages = document.querySelectorAll(".page");
+    const navLinks = document.querySelectorAll(".nav-link");
+
+    navLinks.forEach(link => {
+      link.onclick = e => {
+        e.preventDefault();
+        navLinks.forEach(n => n.classList.remove("active"));
+        link.classList.add("active");
+        pages.forEach(p => p.style.display = "none");
+        document.getElementById(link.dataset.page + "-page").style.display = "block";
+      };
+    });
+
+    const noiseValueEl = document.getElementById("noise-value");
+    const airValueEl = document.getElementById("air-value");
+    const alertBanner = document.getElementById("alert-banner");
+
+    async function updateFromFirestore() {
+      if (!window.getFirestoreData) return;
+      const data = await window.getFirestoreData();
+      if (!data) return;
+
+      const noise = data["noise 1"]?.doubleValue || data["noise 1"] || 0;
+      const air = data["air 1"]?.doubleValue || data["air 1"] || 0;
+
+      noiseValueEl.textContent = noise.toFixed(1);
+      airValueEl.textContent = air.toFixed(1);
+
+      let alert = false;
+      // Noise
+      if (noise > settings.noiseThreshold) {
+        noiseValueEl.className = "gauge-value bad";
+        alert = true;
+      } else if (noise > settings.noiseThreshold - 20) {
+        noiseValueEl.className = "gauge-value moderate";
+      } else {
+        noiseValueEl.className = "gauge-value good";
+      }
+
+      // Air
+      if (air > settings.airThreshold) {
+        airValueEl.className = "gauge-value bad";
+        alert = true;
+      } else if (air > settings.airThreshold / 2) {
+        airValueEl.className = "gauge-value moderate";
+      } else {
+        airValueEl.className = "gauge-value good";
+      }
+
+      alertBanner.style.display = alert ? "block" : "none";
+    }
+
+    setInterval(updateFromFirestore, settings.refreshInterval);
+    updateFromFirestore();
+
+    // Settings
+    document.getElementById("settings-form").onsubmit = e => {
+      e.preventDefault();
+      settings.noiseThreshold = parseFloat(document.getElementById("noise-threshold").value);
+      settings.airThreshold = parseFloat(document.getElementById("air-threshold").value);
+      settings.refreshInterval = parseInt(document.getElementById("refresh-interval").value);
+      clearInterval();
+      setInterval(updateFromFirestore, settings.refreshInterval);
+      document.getElementById("save-msg").style.display = "block";
+      setTimeout(() => document.getElementById("save-msg").style.display = "none", 2000);
+    };
+  </script>
+</body>
+</html>
